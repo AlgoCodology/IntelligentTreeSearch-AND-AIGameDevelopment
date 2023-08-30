@@ -1,0 +1,153 @@
+(define "IsSingleAt" (= 1 (size Stack at: #1)))
+(define "IsDoubleAt" (= 2 (size Stack at: #1)))
+(define "Transpose" 
+  (if ("IsDoubleAt" (from))
+    (move Step (directions {BR BL})
+        (to
+            if: (and ("IsSingleAt" (to)) (is Friend (who at:(to))) )
+        )
+    )
+ )
+)                
+(define "SlideDiagonal"
+    (move Slide 
+        (if ("IsSingleAt" (from))
+        (directions {FL FR})
+        (directions {BL BR}))
+
+        stack: True
+    ) 
+)
+
+(define "NearestRow" (sites Next))
+
+(define "FurthestRow" (sites Mover))
+
+(define "OwnedSitesInFurthestRow"
+    (intersection (sites Occupied by:Mover) ("FurthestRow"))
+)
+
+(define "OwnedSitesNotInFurthestRow"
+(difference (sites Occupied by:Mover) ("FurthestRow"))
+)
+
+(define "IsSingleInFurthestRow"
+    (not (all Sites ("OwnedSitesInFurthestRow")
+        if:(not ("IsSingleAt" (site)))
+    ))
+)
+
+(define "SingleNotInFurthestRow"
+    (not
+        (all Sites ("OwnedSitesNotInFurthestRow")
+            if:(not ("IsSingleAt" (site)))
+        )
+    )
+)
+
+(define "SameTurn"
+    (is Prev Mover)
+)
+(define "NewTurn"
+    (not (is Prev Mover))
+)
+
+(define "TotalSinglesOnBoard"
+    (count Sites
+        in:(forEach 
+                (sites Occupied by:Mover)
+                   if:("IsSingleAt" (site))
+            )
+    )
+)
+(define "CanCrown"
+    (and
+        ("IsSingleInFurthestRow")
+        (> ("TotalSinglesOnBoard") 1)
+    )
+)
+(define "Crown"
+    (move
+        (from (sites Occupied by:Mover) if:("IsSingleAt" (from)))
+        (to ("OwnedSitesInFurthestRowExceptThis") if:("IsSingleAt" (to)))
+    )
+)
+(define "OwnedSitesInFurthestRowExceptThis"
+    (difference ("OwnedSitesInFurthestRow") (from))
+)
+
+(define "CanBearOff"
+    (and (is In (last To) ("NearestRow")) ("IsDoubleAt" (last To)))
+)
+
+(define "BearOff"
+    (move Remove (last To)
+        (then (if ("CanCrown") (moveAgain)))
+    )
+)
+(define "ImpasseMove"
+   (move Remove (sites Occupied by:Mover) (then (if ("CanCrown")(moveAgain))))
+)
+(define "LastPieceOnBoard"
+    (= 1 (count Pieces Mover))
+)
+//----------------------------------- 
+
+(game "Impasse"  
+    (players {(player N) (player S )})  
+    (equipment
+        { 
+        (board (square 8)) 
+        (piece "Counter"
+           (or ("SlideDiagonal") ("Transpose") )
+        )
+        (regions P1 (sites Top))
+        (regions P2 (sites Bottom))
+   })  
+   (rules
+        (start {
+            (place Stack "Counter1" (sites {"A1" "D2" "E1" "H2"}) count:1)
+            (place Stack "Counter2" (sites {"A7" "D8" "E7" "H8"}) count:1)
+            (place Stack "Counter1" (sites {"B8" "C7" "F8" "G7"}) count:2) 
+            (place Stack "Counter2" (sites {"B2" "C1" "F2" "G1"}) count:2) 
+        })
+        (play
+            (if (and ("SameTurn")("CanBearOff")) ("BearOff")
+                (if (and ("SameTurn")("CanCrown")) ("Crown")
+                    (priority {
+                        (forEach Piece top:True
+                          (then (if (or ("CanBearOff") ("CanCrown")) (moveAgain)))
+                         )
+                     ("ImpasseMove")
+                    })
+                )
+            )
+        )
+        (end (if (no Pieces Mover) (result Mover Win)))
+    )
+)
+
+//---------------------------------------------------------------------
+(metadata
+    (graphics
+        {
+            (piece Scale "Counter" 0.8)
+            (board Style Chess)
+        }
+    )
+)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
